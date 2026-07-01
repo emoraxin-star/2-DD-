@@ -17,50 +17,76 @@ Complete reverse engineering of **LIBERTEA.DLL v414**, a Helldivers 2 internal c
 | **Distribution** | Discord + Cloudflare Workers CDN |
 | **Auth** | Username/password or key, subscription tiers |
 
-## File Map
+## Directory Structure
 
 ```
 2/
-├── README.md                          # This file
-├── MASTER_INDEX.txt                   # Complete file/deliverable index
+├── README.md
+├── MASTER_INDEX.txt
+├── LIBERTEA.DLL
+├── .text_decompressed.bin
 │
-├── 📊 ANALYSIS DOCUMENTS (5 files, 434 KB)
-├── libertea_analysis.txt              # Pointers, offsets, IDs, ImGui toggles
-├── libertea_tech_breakdown.txt        # Build architecture, aPLib spec, build strategy
-├── libertea_deep_dive.txt             # Memory map, function map, strings, C++ RTTI, features
-├── libertea_complete.txt              # Full disassembly, call graph, entropy, anti-debug
-├── libertea_niche.txt                 # Format strings, HTTP headers, enums, FP constants
+├── docs/
+│   ├── 01_binary_identity/
+│   │   ├── libertea_analysis.txt          # Pointers, offsets, IDs, ImGui toggles
+│   │   ├── libertea_tech_breakdown.txt    # Build architecture, aPLib spec, build strategy
+│   │   ├── libertea_complete.txt          # Full disassembly, call graph, entropy, anti-debug
+│   │   └── resweep_pe.txt                 # PE headers, relocations, TLS, exceptions, compression
+│   ├── 02_code_analysis/
+│   │   ├── libertea_deep_dive.txt         # Memory map, function map, strings, C++ RTTI, features
+│   │   ├── libertea_niche.txt             # Format strings, HTTP headers, enums, FP constants
+│   │   └── resweep_code.txt               # ImGui version, pattern scanner, HTTP stack, JSON parser
+│   ├── 03_game_data/
+│   │   ├── resweep_game_data.txt          # 130 weapons, 68 armor, 37 stratagems, pointer chains
+│   │   └── resweep_strings.txt            # Base64, crypto, proxy detection, AOB signatures, HWID
+│   ├── 04_hook_system/
+│   │   └── hook_system_analysis.txt       # 73 patterns, 6 hook types, 4-phase install
+│   ├── 05_network_protocol/
+│   │   └── sc_farming_analysis.txt        # State machine, replay capture, hash table NOP, VEH
+│   ├── 06_architecture/
+│   │   └── architecture_recreation.txt    # 15 components, data flow, recreation strategy
+│   └── 07_sanitized/
+│       └── FULL_BREAKDOWN_SANITIZED.txt   # Sanitized full breakdown
 │
-├── 🔍 RESWEEP FINDINGS (4 files, 420 KB)
-├── resweep_pe.txt                     # PE headers, relocations, TLS, exceptions, compression
-├── resweep_strings.txt                # Base64, crypto, proxy detection, AOB signatures, HWID
-├── resweep_code.txt                   # ImGui version, pattern scanner, HTTP stack, JSON parser
-├── resweep_game_data.txt              # 130 weapons, 68 armor, 37 stratagems, pointer chains
+├── scripts/
+│   ├── extractors/
+│   │   ├── pattern_extractor.py           # Extract 73+ IDA patterns → JSON
+│   │   ├── deep_dive.py                   # Generate deep dive document
+│   │   ├── niche_details.py               # Generate niche details document
+│   │   ├── extract_analysis.py            # Generate analysis document
+│   │   ├── full_extract.py                # Generate complete document
+│   │   └── libertea_tech_breakdown.py     # Generate tech breakdown document
+│   ├── analysis/
+│   │   ├── sc_protocol_analysis.py        # SC farming state machine with data classes
+│   │   ├── _analyze.py                    # aPLib decompressor (partial)
+│   │   ├── analyze_re.py                  # Reverse analysis script
+│   │   ├── deep_analyze.py                # Deep analysis script
+│   │   └── supplement_analyze.py          # Supplement analysis script
+│   ├── decompressor/
+│   │   ├── unpack.py                      # Decompressor attempt 1
+│   │   └── unpack2.py                     # Decompressor attempt 2
+│   └── build/
+│       └── (empty — pe_analyzer.py kept in build_scripts/)
 │
-├── 🧩 SPECIALIZED ANALYSIS (3 files, 102 KB)
-├── hook_system_analysis.txt           # 73 patterns, 6 hook types, 4-phase install
-├── sc_farming_analysis.txt            # State machine, replay capture, hash table NOP, VEH
-├── architecture_recreation.txt        # 15 components, data flow, recreation strategy
+├── data/
+│   ├── .text_unpacked_mem.bin             # 3.49 MB — ground-truth unpacked .text
+│   ├── compressed.bin                     # 458 KB — aPLib compressed payload
+│   ├── payload_compressed.bin             # Earlier extraction variant
+│   ├── patterns_extracted.json            # 18 KB — all 73 patterns in JSON
+│   ├── all_strings.txt                    # Extracted strings (filtered)
+│   ├── all_strings_raw.txt                # All raw strings
+│   └── strings_utf16le.txt                # UTF-16LE strings dump
 │
-├── 🐍 USABLE SCRIPTS
-├── pattern_extractor.py               # Extract 73+ IDA patterns → JSON
-├── pe_analyzer.py                     # Full PE parsing + packer anomaly detection
-├── sc_protocol_analysis.py            # SC farming state machine with data classes
-├── _analyze.py                        # aPLib decompressor (partial)
-├── unpack.py / unpack2.py             # Earlier decompressor attempts
-├── deep_dive.py                       # Generate deep dive document
-├── niche_details.py                   # Generate niche details document
-├── extract_analysis.py                # Generate analysis document
-├── full_extract.py                    # Generate complete document
-├── libertea_tech_breakdown.py         # Generate tech breakdown document
+├── resweep/
+│   ├── resweep_analyzer.ps1               # PowerShell resweep analysis runner
+│   ├── resweep_analyzer.py                # Python resweep analysis runner
+│   ├── resweep_supplement.py              # Supplement analysis generator
+│   └── resweep_supplement.txt             # Supplement analysis output
 │
-├── 📦 DATA FILES
-├── .text_unpacked_mem.bin             # 3.49 MB — ground-truth unpacked .text
-├── compressed.bin                     # 458 KB — aPLib compressed payload
-├── patterns_extracted.json            # 18 KB — all 73 patterns in JSON
+├── build_scripts/
+│   └── pe_analyzer.py                     # Full PE parsing + packer anomaly detection
 │
-└── 🔧 BUILD SCRIPTS/
-    └── pe_analyzer.py                 # PE parsing utility
+└── .git/
 ```
 
 ## Architecture Overview
