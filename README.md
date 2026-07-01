@@ -10,7 +10,7 @@ Complete reverse engineering of **LIBERTEA.DLL v414**, a Helldivers 2 internal c
 | **Cheat DLL** | LIBERTEA.DLL (732 KB packed, 3.49 MB unpacked) |
 | **Injector** | LIBERTEA_Bypass.exe |
 | **Version** | v414 |
-| **Author** | TheOGcup |
+| **Author** |  |
 | **Language** | C++17, MSVC 2022, static CRT |
 | **GUI** | Dear ImGui 1.91.5, OpenGL overlay |
 | **Anti-cheat bypassed** | nProtect GameGuard |
