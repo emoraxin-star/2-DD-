@@ -91,7 +91,7 @@ def read_struct(fmt, data, offset):
     return struct.unpack_from(fmt, data, offset)
 
 
-    def rva_to_offset_raw_raw(sections, rva):
+def rva_to_offset(sections, rva):
     """Convert RVA to file offset using section headers.
     Returns None if RVA maps past raw data (virtual-only region)."""
     for name, vsize, vrva, rsize, rptr, chars in sections:
@@ -212,7 +212,8 @@ class PEAnalyzer:
 
         magic = struct.unpack_from("<H", data, off)[0]
         if self.is_64bit:
-            fmt = "<HBB I I I Q Q Q I H H H H H H I Q Q Q"
+            # PE32+ Optional Header: 112 bytes of standard fields
+            fmt = "<HBB III I I Q I I H H H H H H I I I I H H Q Q Q Q I I"
             keys = [
                 "magic", "major_linker", "minor_linker",
                 "size_of_code", "size_of_init_data", "size_of_uninit_data",
@@ -221,44 +222,37 @@ class PEAnalyzer:
                 "major_os", "minor_os", "major_image", "minor_image",
                 "major_subsys", "minor_subsys", "win32_version",
                 "size_of_image", "size_of_headers", "checksum",
+                "subsystem", "dll_chars",
+                "stack_reserve", "stack_commit",
+                "heap_reserve", "heap_commit",
+                "loader_flags", "num_data_dirs",
             ]
             vals = struct.unpack_from(fmt, data, off)
             self.oh = dict(zip(keys, vals))
-
-            extra_off = off + struct.calcsize(fmt)
-            self.subsystem, self.dll_chars = struct.unpack_from("<H H", data, extra_off)
-            extra_off += 4
-            # size of stack reserve/commit and heap reserve/commit
-            self.stack_reserve = struct.unpack_from("<Q", data, extra_off)[0]
-            self.stack_commit = struct.unpack_from("<Q", data, extra_off + 8)[0]
-            self.heap_reserve = struct.unpack_from("<Q", data, extra_off + 16)[0]
-            self.heap_commit = struct.unpack_from("<Q", data, extra_off + 24)[0]
-            extra_off += 32
-            self.loader_flags, self.num_data_dirs = struct.unpack_from("<I I", data, extra_off)
-            self.data_dir_offset = extra_off + 8
+            self.data_dir_offset = off + struct.calcsize(fmt)
         else:
-            fmt = "<HBB I I I I I I I H H H H H H I I I"
+            # PE32 Optional Header
+            fmt = "<HBB I I I I I I I H H H H H H I I I H H I I I I I I"
             keys = [
                 "magic", "major_linker", "minor_linker",
                 "size_of_code", "size_of_init_data", "size_of_uninit_data",
-                "entry_rva", "base_of_code", "base_of_code_dup",
+                "entry_rva", "base_of_code", "image_base_32",
                 "section_alignment", "file_alignment",
                 "major_os", "minor_os", "major_image", "minor_image",
                 "major_subsys", "minor_subsys", "win32_version",
                 "size_of_image", "size_of_headers", "checksum",
+                "subsystem", "dll_chars",
+                "stack_reserve", "stack_commit",
+                "heap_reserve", "heap_commit",
+                "loader_flags", "num_data_dirs",
             ]
             vals = struct.unpack_from(fmt, data, off)
             self.oh = dict(zip(keys, vals))
-            extra_off = off + struct.calcsize(fmt)
-            self.subsystem, self.dll_chars = struct.unpack_from("<H H", data, extra_off)
-            extra_off += 4
-            self.stack_reserve = struct.unpack_from("<I", data, extra_off)[0]
-            self.stack_commit = struct.unpack_from("<I", data, extra_off + 4)[0]
-            self.heap_reserve = struct.unpack_from("<I", data, extra_off + 8)[0]
-            self.heap_commit = struct.unpack_from("<I", data, extra_off + 12)[0]
-            extra_off += 16
-            self.loader_flags, self.num_data_dirs = struct.unpack_from("<I I", data, extra_off)
-            self.data_dir_offset = extra_off + 8
+            self.data_dir_offset = off + struct.calcsize(fmt)
+
+        # Populate convenience fields
+        self.subsystem = self.oh["subsystem"]
+        self.dll_chars = self.oh["dll_chars"]
 
         # Parse DLL characteristics
         dll_char_names = []
@@ -277,14 +271,14 @@ class PEAnalyzer:
 
         # Parse data directories
         self.data_dirs = []
-        for i in range(self.num_data_dirs):
+        for i in range(self.oh["num_data_dirs"]):
             rva, size = struct.unpack_from("<I I", data, self.data_dir_offset + i * 8)
             self.data_dirs.append((rva, size))
 
         return True
 
     def _parse_sections(self):
-        section_offset = self.data_dir_offset + self.num_data_dirs * 8
+        section_offset = self.data_dir_offset + self.oh["num_data_dirs"] * 8
         self.sections = []
         for i in range(self.num_sections):
             off = section_offset + i * 40
@@ -396,7 +390,7 @@ class PEAnalyzer:
             return "No import table found"
 
         lines = []
-        off = rva_to_offset_raw(self.sections, imp_rva)
+        off = rva_to_offset(self.sections, imp_rva)
         if off is None:
             return f"Cannot resolve import RVA 0x{imp_rva:X} to file offset"
 
@@ -413,7 +407,7 @@ class PEAnalyzer:
             if name_rva == 0:
                 break
 
-            name_foff = rva_to_offset_raw(self.sections, name_rva)
+            name_foff = rva_to_offset(self.sections, name_rva)
             dll_name = ""
             if name_foff:
                 dll_name, _ = get_asciiz(self.data, name_foff)
@@ -421,7 +415,7 @@ class PEAnalyzer:
             # Enumerate thunks (imported functions)
             imports = []
             thunk_rva = first_thunk if first_thunk != 0 else orig_first_thunk
-            thunk_off = rva_to_offset_raw(self.sections, thunk_rva)
+            thunk_off = rva_to_offset(self.sections, thunk_rva)
             if thunk_off:
                 t = 0
                 while True:
@@ -445,7 +439,7 @@ class PEAnalyzer:
                         imports.append(f"  Ordinal #{ordinal}")
                     else:
                         hint_name_rva = entry & 0x7FFFFFFF if not self.is_64bit else entry & 0xFFFFFFFF
-                        fn_off = rva_to_offset_raw(self.sections, hint_name_rva)
+                        fn_off = rva_to_offset(self.sections, hint_name_rva)
                         if fn_off and fn_off + 4 <= len(self.data):
                             hint = struct.unpack_from("<H", self.data, fn_off)[0]
                             fn_name, _ = get_asciiz(self.data, fn_off + 2)
@@ -477,7 +471,7 @@ class PEAnalyzer:
         if rsrc_rva == 0:
             return "No resource table"
 
-        rsrc_off = rva_to_offset_raw(self.sections, rsrc_rva)
+        rsrc_off = rva_to_offset(self.sections, rsrc_rva)
         if rsrc_off is None:
             return f"Cannot resolve resource RVA 0x{rsrc_rva:X}"
 
@@ -552,7 +546,7 @@ class PEAnalyzer:
                 f"    This is sufficient for loader stub only; real code relocates at runtime"
             )
 
-        reloc_off = rva_to_offset_raw(self.sections, reloc_rva)
+        reloc_off = rva_to_offset(self.sections, reloc_rva)
         if reloc_off is None:
             return f"Cannot resolve reloc RVA 0x{reloc_rva:X}"
 
@@ -602,7 +596,7 @@ class PEAnalyzer:
             f"({exc_size // 12} entries)"
         )
 
-        exc_off = rva_to_offset_raw(self.sections, exc_rva)
+        exc_off = rva_to_offset(self.sections, exc_rva)
         if exc_off:
             lines.append(f"  File offset: 0x{exc_off:X}")
 
@@ -625,7 +619,7 @@ class PEAnalyzer:
         if tls_rva == 0:
             return "No TLS directory"
 
-        tls_off = rva_to_offset_raw(self.sections, tls_rva)
+        tls_off = rva_to_offset(self.sections, tls_rva)
         if tls_off is None:
             return f"  TLS: RVA=0x{tls_rva:X} Size={tls_size}"
 
@@ -661,7 +655,7 @@ class PEAnalyzer:
         if lc_rva == 0:
             return "No Load Config"
 
-        lc_off = rva_to_offset_raw(self.sections, lc_rva)
+        lc_off = rva_to_offset(self.sections, lc_rva)
         if lc_off is None:
             return f"  Load Config: RVA=0x{lc_rva:X} Size={lc_size}"
 
@@ -824,17 +818,17 @@ def run_analysis(dll_path):
     print(f"  FileAlign:       {pe.oh['file_alignment']} (0x{pe.oh['file_alignment']:X})")
     print(f"  SizeOfImage:     0x{pe.oh['size_of_image']:X}")
     print(f"  SizeOfHeaders:   0x{pe.oh['size_of_headers']:X}")
-    print(f"  Subsystem:       {pe.subsystem} ({'GUI' if pe.subsystem == 2 else 'CONSOLE' if pe.subsystem == 3 else 'Unknown'})")
+    print(f"  Subsystem:       {pe.oh['subsystem']} ({'GUI' if pe.oh['subsystem'] == 2 else 'CONSOLE' if pe.oh['subsystem'] == 3 else 'Unknown'})")
     print(f"  DLL Flags:       {pe.dll_chars_str}")
     print(f"  BaseOfCode:      0x{pe.oh['base_of_code']:X}")
     print(f"  CheckSum:        0x{pe.oh['checksum']:08X}")
-    print(f"  Data Dirs:       {pe.num_data_dirs}")
+    print(f"  Data Dirs:       {pe.oh['num_data_dirs']}")
 
     # Stack/Heap
-    print(f"  Stack Reserve:   {pe.stack_reserve // 1024:,} KB")
-    print(f"  Stack Commit:    {pe.stack_commit // 1024:,} KB")
-    print(f"  Heap Reserve:    {pe.heap_reserve // 1024:,} KB")
-    print(f"  Heap Commit:     {pe.heap_commit // 1024:,} KB")
+    print(f"  Stack Reserve:   {pe.oh['stack_reserve'] // 1024:,} KB")
+    print(f"  Stack Commit:    {pe.oh['stack_commit'] // 1024:,} KB")
+    print(f"  Heap Reserve:    {pe.oh['heap_reserve'] // 1024:,} KB")
+    print(f"  Heap Commit:     {pe.oh['heap_commit'] // 1024:,} KB")
 
     # Section table
     print(f"\n{'=' * 68}")
@@ -860,7 +854,7 @@ def run_analysis(dll_path):
         if rva == 0:
             status = "(empty)"
         else:
-            file_off = rva_to_offset_raw(pe.sections, rva)
+            file_off = rva_to_offset(pe.sections, rva)
             if file_off is not None:
                 status = f"@0x{file_off:X}"
             else:

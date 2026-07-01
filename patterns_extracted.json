@@ -1,0 +1,659 @@
+[
+  {
+    "offset": 1054744,
+    "signature": "48 89 5C 24 08 57 48 83 EC 30 C7 02 FF FF FF FF",
+    "name": "prologue",
+    "module": "winhttp.dll",
+    "type_tag": "FN_C",
+    "sig_length_bytes": 16,
+    "hook_type": "FUNCTION_PROLOGUE"
+  },
+  {
+    "offset": 1054816,
+    "signature": "8B 46 ?? 83 E8 ?? 83 F8 ?? 41",
+    "name": "40 53 57 48 81 EC 18 0D 00 00",
+    "module": "winhttp.dll",
+    "type_tag": "FN_D",
+    "sig_length_bytes": 10,
+    "hook_type": "FUNCTION_PROLOGUE"
+  },
+  {
+    "offset": 1054856,
+    "signature": "40 53 57 48 81 EC 18 0D 00 00",
+    "name": "C7 44 24 24 1B 94 E7 01",
+    "module": "game.dll",
+    "type_tag": "FN_F",
+    "sig_length_bytes": 10,
+    "hook_type": "FUNCTION_PROLOGUE"
+  },
+  {
+    "offset": 1054896,
+    "signature": "C7 44 24 24 1B 94 E7 01",
+    "name": "constant",
+    "module": "game.dll",
+    "type_tag": "FN_9",
+    "sig_length_bytes": 8,
+    "hook_type": "FUNCTION_PROLOGUE"
+  },
+  {
+    "offset": 1054944,
+    "signature": "74 ?? 49 8D 83 ?? ?? ?? ?? 39 50 04 74 ?? FF C1 48 83 C0 18 41 3B ?? 72 F0 EB ?? 8B",
+    "name": "context",
+    "module": "game.dll",
+    "type_tag": "FN_GT",
+    "sig_length_bytes": 28,
+    "hook_type": "FUNCTION_PROLOGUE"
+  },
+  {
+    "offset": 1055048,
+    "signature": "48 8B 05 ?? ?? ?? ?? 33 D2 48 8B 35",
+    "name": "xref",
+    "module": "game.dll",
+    "type_tag": "PTR_A",
+    "sig_length_bytes": 12,
+    "hook_type": "POINTER_RESOLVE"
+  },
+  {
+    "offset": 1055120,
+    "signature": "48 8B 35 ?? ?? ?? ?? 49 8B E9 41 8B D8 48 8B 88 28 01",
+    "name": "",
+    "module": "game.dll",
+    "type_tag": "PTR_D",
+    "sig_length_bytes": 18,
+    "hook_type": "POINTER_RESOLVE"
+  },
+  {
+    "offset": 1055176,
+    "signature": "48 8B 35 ?? ?? ?? ?? 33 C9 49 8B E9 41 8B D8 4C 8B 90 28 01",
+    "name": "",
+    "module": "game.dll",
+    "type_tag": "PTR_D",
+    "sig_length_bytes": 20,
+    "hook_type": "POINTER_RESOLVE"
+  },
+  {
+    "offset": 1055248,
+    "signature": "48 8B 0D ?? ?? ?? ?? 44 89 80 60 0C",
+    "name": "",
+    "module": "game_current.dll",
+    "type_tag": "PTR_C",
+    "sig_length_bytes": 12,
+    "hook_type": "POINTER_RESOLVE"
+  },
+  {
+    "offset": 1055304,
+    "signature": "48 8B 05 ?? ?? ?? ?? 8B 90 90 63 01 00 4C 8D 88 C8 62 01 00",
+    "name": "vector<bool> too long",
+    "module": "game_current.dll",
+    "type_tag": "PTR_PM",
+    "sig_length_bytes": 20,
+    "hook_type": "POINTER_RESOLVE"
+  },
+  {
+    "offset": 1058848,
+    "signature": "4C 8B F0 4C 8B 89 ?? ?? ?? ?? 48 8B C8 41 FF 91 ?? ?? ?? ?? 48 8B 0D ?? ?? ?? ?? 48 8D 15 ?? ?? ?? ?? 44 8B C3",
+    "name": "[SC-LIMIT] Code cave at %p",
+    "module": "bcrypt.dll",
+    "type_tag": "",
+    "sig_length_bytes": 37,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1059032,
+    "signature": "F3 41 0F 10 94 F4 CC 14 00 00",
+    "name": "[Features] ntdll.dll handle: %p",
+    "module": "bcrypt.dll",
+    "type_tag": "",
+    "sig_length_bytes": 10,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1059064,
+    "signature": "8B 4B ?? 48 8D 04 ?? ?? ?? ?? ?? 48",
+    "name": "[Features] ntdll.dll handle: %p",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 12,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1059104,
+    "signature": "44 8B C5 4C 8B 89 ?? ?? ?? ?? 48 8B CB 41 FF 91 ?? ?? ?? ?? 41 FF C7",
+    "name": "[Features] ntdll.dll handle: %p",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 23,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1059176,
+    "signature": "4D 8B E0 4C 89 44 24 ?? 48 8B DA",
+    "name": "[Features] ntdll.dll handle: %p",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 11,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1059216,
+    "signature": "F3 41 0F 5C ?? BA ?? ?? ?? ?? F3 0F 11 04 01",
+    "name": "[Features] ntdll.dll handle: %p",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 15,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1059608,
+    "signature": "41 8B 47 ?? 4C 8B 7C 24 ?? 4C",
+    "name": "NOP stamina read/drain",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 10,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1059664,
+    "signature": "40 57 48 83 EC ?? 3B 15 ?? ?? ?? ?? 41 8B F8 4C 89 7C 24",
+    "name": "Return TRUE to skip ragdoll check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 19,
+    "hook_type": "FUNCTION_RETURN"
+  },
+  {
+    "offset": 1059768,
+    "signature": "48 83 EC 18 48 8B 01",
+    "name": "Return from recoil function immediately",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "FUNCTION_RETURN"
+  },
+  {
+    "offset": 1059848,
+    "signature": "0F 86 ?? ?? ?? ?? 0F 29 ?? ?? F3 0F 10 3D ?? ?? ?? ?? 44 0F",
+    "name": "Force unconditional jump (bypass strategem count)",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 20,
+    "hook_type": "CONDITIONAL_INVERT"
+  },
+  {
+    "offset": 1059984,
+    "signature": "0F 5B DB F3 41 0F 59 4E ?? F3",
+    "name": "NOP grenade count conversion",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 10,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060064,
+    "signature": "42 FF ?? E0 49 8B 46 ?? 4E",
+    "name": "NOP stim count decrement",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060144,
+    "signature": "F3 0F 59 4B ?? F3 0F 59 4B ?? 0F 28 D9 F3 0F 5C DC",
+    "name": "NOP landing speed multiply",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 17,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060248,
+    "signature": "0F 84 ?? ?? ?? ?? 80 7F ?? ?? 0F 85 ?? ?? ?? ?? F3 0F",
+    "name": "Force unconditional jump (bypass boundary)",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 18,
+    "hook_type": "CONDITIONAL_INVERT"
+  },
+  {
+    "offset": 1060368,
+    "signature": "41 0F 2F 45 ?? 77 ?? 48",
+    "name": "NOP hover time limit check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 8,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060448,
+    "signature": "83 FE 07 7C 07 BA ?? ?? ?? ?? EB 16 83 FE 05",
+    "name": "Force highest difficulty reward tier (NOP jl at cmp esi,7)",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 15,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1060584,
+    "signature": "39 46 ?? 75 ?? FF C5",
+    "name": "NOP launch code comparison jne",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060688,
+    "signature": "F3 0F 5C C7 F3 41 0F 59 E3",
+    "name": "NOP timer decrement (subss xmm0,xmm7) \ufffd\ufffd\ufffd freezes all mission timers",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060808,
+    "signature": "F3 45 0F 11 5E ?? E9",
+    "name": "NOP shield relay cooldown write",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060888,
+    "signature": "F3 0F 11 56 ?? ?? ?? ?? ?? ?? ?? 0F 2F",
+    "name": "NOP hellbomb arm timer write",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1060960,
+    "signature": "75 ?? F3 0F 10 46 ?? 0F 2F C6 72 ?? F3",
+    "name": "NOP arrow sequence check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061056,
+    "signature": "0F 2F 76 ?? C6 46 18 ?? 76",
+    "name": "Skip coordinate timer check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061136,
+    "signature": "0F 2F C1 48 89 44 24 ?? 76",
+    "name": "Skip pipe connection timer",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061200,
+    "signature": "F3 0F 58 49 F4 ?? 8B D3",
+    "name": "NOP turret heat accumulation",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 8,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061256,
+    "signature": "F3 0F 11 44 C8 ?? 0F",
+    "name": "NOP turret timer write",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061304,
+    "signature": "0F 82 ?? ?? ?? ?? 8B 5A ?? 8B 3D",
+    "name": "NOP conditional jump so turrets always expire immediately",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 11,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061424,
+    "signature": "41 0F 28 C1 F3 41 0F 58 C6",
+    "name": "NOP railgun charge calculation",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061512,
+    "signature": "F3 0F 11 44 3B ?? F3 0F 59 C7 F3 0F 5A C0",
+    "name": "NOP fuse timer write",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 14,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061600,
+    "signature": "75 ?? 41 8D 45 ?? 89 06 EB ?? C7 06",
+    "name": "NOP combo mismatch check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 12,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061696,
+    "signature": "74 ?? 32 C0 EB ?? B0 ?? 45 32 ED",
+    "name": "NOP round completion check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 11,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061784,
+    "signature": "75 ?? 8D 42 ?? BA",
+    "name": "NOP arcade combo sequence check",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 6,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061864,
+    "signature": "F3 0F 11 04 06 48 8B 47",
+    "name": "NOP killstreak score write",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 8,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1061944,
+    "signature": "F3 0F 11 97 ?? ?? ?? ?? 76 ?? 45 33 F6",
+    "name": "NOP killstreak timer write",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1062016,
+    "signature": "83 F8 10 0F 82 ?? ?? ?? ?? 41 8B 4E 08 41 B9 FF FF FF FF 41 B8 70 00 00 00",
+    "name": "NOP both hash table INSERT calls that mark SC entities as collected",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 25,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1062184,
+    "signature": "F3 41 0F 10 94 F4 ?? ?? ?? ?? 4C 8B 81",
+    "name": "NOP resource value read (freezes resources)",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1062288,
+    "signature": "01 41 04 49 8B 46 30",
+    "name": "Freeze sample values (prevents loss)",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1062368,
+    "signature": "48 89 5C 24 ?? 48 89 7C 24 ?? 4C 89 44",
+    "name": "Return from weather function immediately",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "FUNCTION_RETURN"
+  },
+  {
+    "offset": 1062464,
+    "signature": "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 3B 15 ?? ?? ?? ?? 4D 8B F0",
+    "name": "Return 0 from aggro function",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 31,
+    "hook_type": "FUNCTION_RETURN"
+  },
+  {
+    "offset": 1062592,
+    "signature": "F3 0F 59 00 F3 0F 11 44 DF ?? F3",
+    "name": "NOP perception multiply",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 11,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1062664,
+    "signature": "48 89 5C 24 ?? 48 8B D9 85 D2 75 ?? 4C",
+    "name": "NOP unlock check jump",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "NOP_PATCH"
+  },
+  {
+    "offset": 1065168,
+    "signature": "2B 5D ?? 89 1C ?? 48",
+    "name": "No Laser Overheat",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065192,
+    "signature": "42 83 2C 81 ?? 49",
+    "name": "Map Hack",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 6,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065216,
+    "signature": "42 83 2C 81 ?? 48",
+    "name": "Hoverpack Control",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 6,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065240,
+    "signature": "2B C8 BA ?? ?? ?? ?? 49 8B",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065272,
+    "signature": "49 8B 45 ?? 48 89 45 E0 49",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065304,
+    "signature": "48 8D 04 52 48 8D 0C 85 ?? ?? ?? ?? 49 8B 42 ?? 44 89 74 01",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 20,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065368,
+    "signature": "FF 0F 83 FE ?? 0F 84",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065392,
+    "signature": "F3 0F 5E 80 ?? ?? ?? ?? F3 0F 59 D8",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 12,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065432,
+    "signature": "42 FF 0C E0 49 8B 46 ?? 4E",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065464,
+    "signature": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 10,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065496,
+    "signature": "F3 43 0F 11 44 F7 ?? 0F 28",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065528,
+    "signature": "F3 0F 10 4C ?? ?? F3 41 0F 10 ?? ?? ?? ?? ?? 0F 2F D1",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 18,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065584,
+    "signature": "F3 0F 11 44 AF ?? 72",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065608,
+    "signature": "F3 0F 11 4C A8 ?? 49",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 7,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065648,
+    "signature": "41 80 BC 24 AB 02 00 00 00",
+    "name": "45 8B 74 D7 04 41 FF CE 3B F9",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 9,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065680,
+    "signature": "0F 84 ?? ?? ?? ?? 83 7C 24 ?? ?? 0F 83",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 13,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065720,
+    "signature": "75 ?? 41 80 BF ?? ?? ?? ?? ?? 0F 85",
+    "name": "45 0F B6 6D 3B",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 12,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065760,
+    "signature": "0F 85 ?? ?? ?? ?? 48 8B 44 24 ?? 80 78 29",
+    "name": "Takeoff Force",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 14,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065808,
+    "signature": "0F 85 ?? ?? ?? ?? 48 8D BE ?? ?? ?? ?? 41 0F 28 CE",
+    "name": "Takeoff Force",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 17,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065864,
+    "signature": "76 ?? ?? ?? ?? ?? ?? ?? ?? 48 8B 44 ?? ?? 48 8B 4C ?? ?? 44 38",
+    "name": "Takeoff Force",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 21,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065928,
+    "signature": "F3 0F 11 54 01 ?? 48 83 C1 ?? 49",
+    "name": "Takeoff Force",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 11,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1065968,
+    "signature": "4C 8D 85 ?? ?? ?? ?? 0F 29 85",
+    "name": "Takeoff Force",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 10,
+    "hook_type": "CODE_PATCH"
+  },
+  {
+    "offset": 1066272,
+    "signature": "E8 ?? ?? ?? ?? 8B D7 48 8B CB 4C",
+    "name": "Function prologue mismatch",
+    "module": "game.dll",
+    "type_tag": "",
+    "sig_length_bytes": 11,
+    "hook_type": "CODE_PATCH"
+  }
+]
