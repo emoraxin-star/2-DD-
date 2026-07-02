@@ -63,6 +63,7 @@ try:
 
         # GETBIT for literal/match decision
         bit = getbit()
+
         if iteration < 30:
             print(f"  Iter {iteration}: bit={bit} (literal={'yes' if bit else 'no'}), ebx=0x{ebx:08X}, rsi={rsi}, dl=0x{dl:02X}, ecx={ecx}, ebp={ebp}, out_len={len(output)}")
 
