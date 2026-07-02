@@ -60,8 +60,8 @@ public:
     static std::vector<HexLine> LoadHexDump(const fs::path& path, uint64_t offset = 0, size_t length = 512);
     static std::string FormatSize(uintmax_t bytes);
     static std::string EscapeHtml(const std::string& str);
+    static bool IsTextFile(const fs::path& path);
     
 private:
-    static bool IsTextFile(const fs::path& path);
     static std::string ReadFileContent(const fs::path& path, const std::string& encoding);
 };
