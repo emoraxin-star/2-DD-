@@ -13,21 +13,12 @@ endif()
 # ImGui
 add_subdirectory(imgui)
 
-# Main executable
+# Main executable - simple version
 add_executable(LiberTeaBrowser
-    src/main.cpp
-    src/browser.cpp
+    src/main_simple.cpp
     src/browser.h
     src/file_loader.cpp
     src/file_loader.h
-    src/string_viewer.cpp
-    src/string_viewer.h
-    src/pattern_viewer.cpp
-    src/pattern_viewer.h
-    src/hex_viewer.cpp
-    src/hex_viewer.h
-    src/search.cpp
-    src/search.h
 )
 
 target_link_libraries(LiberTeaBrowser PRIVATE imgui)

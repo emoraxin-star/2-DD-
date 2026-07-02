@@ -19,30 +19,31 @@ rsi = 0     # source pointer
 rdi = 0     # dest index (into output list)
 ebx = 0     # bit buffer
 ebp = -1    # last offset (signed)
-ecx = 0     # length carryover
+ecx = 0     # length carryover (for length gamma)
+prev_len = 0  # previous match copy length (for offset gamma)
 output = bytearray()
 dl = 0      # preload byte
 
 def getbit():
-    """call r11: return CF (0 or 1)"""
+    """call r11: return CF (0 or 1) - exact aPLib bit reader"""
     global rsi, ebx, dl
     # add ebx, ebx
     cf = (ebx >> 31) & 1
     ebx = (ebx << 1) & 0xFFFFFFFF
-    if ebx == 0:
-        # refill
-        if rsi + 3 >= len(src):
-            ebx = 0
-            return 0
-        ebx = src[rsi] | (src[rsi+1] << 8) | (src[rsi+2] << 16) | (src[rsi+3] << 24)
-        rsi += 4
-        # adc ebx, ebx
-        new_cf = (ebx >> 31) & 1
-        ebx = ((ebx << 1) | cf) & 0xFFFFFFFF
-        # preload next byte
-        dl = src[rsi] if rsi < len(src) else 0
-        return new_cf
-    return cf
+    if ebx != 0:
+        return cf
+    # refill: mov ebx, [rsi]; add rsi, 4; adc ebx, ebx
+    if rsi + 3 >= len(src):
+        ebx = 0
+        return 0
+    ebx = src[rsi] | (src[rsi+1] << 8) | (src[rsi+2] << 16) | (src[rsi+3] << 24)
+    rsi += 4
+    # adc ebx, ebx
+    new_cf = (ebx >> 31) & 1
+    ebx = ((ebx << 1) | cf) & 0xFFFFFFFF
+    # preload next byte: mov dl, [rsi]
+    dl = src[rsi] if rsi < len(src) else 0
+    return new_cf
 
 # Preload first byte: main loop does mov dl, [rsi]
 dl = src[rsi] if rsi < len(src) else 0
@@ -62,6 +63,8 @@ try:
 
         # GETBIT for literal/match decision
         bit = getbit()
+        if iteration < 30:
+            print(f"  Iter {iteration}: bit={bit} (literal={'yes' if bit else 'no'}), ebx=0x{ebx:08X}, rsi={rsi}, dl=0x{dl:02X}, ecx={ecx}, ebp={ebp}, out_len={len(output)}")
 
         if bit == 1:
             # LITERAL
@@ -70,22 +73,24 @@ try:
             dl = src[rsi] if rsi < len(src) else 0
         else:
             # MATCH
-            # Decode offset (gamma): start from ecx + 1
-            # Standard aPLib style: 1 bit per iter, stop=1 exits
+            # Decode length (gamma): eax = prev_len + 1
+            # First pass: 1 data bit + stop bit
             eax = ecx + 1
-            
-            # Gamma loop: read bit, shift in, check stop
-            while True:
-                b = getbit()
-                eax = (eax << 1) | b
+            b = getbit()
+            eax = (eax << 1) | b
+            stop = getbit()
+            # Subsequent passes: dec eax + 2 data bits + stop bit
+            while stop == 0:
+                eax -= 1
+                b0 = getbit()
+                eax = (eax << 1) | b0
+                b1 = getbit()
+                eax = (eax << 1) | b1
                 stop = getbit()
-                if stop == 1:
-                    break
-
             eax -= 3
 
             if eax < 0:
-                # SHORT MATCH - offset uses last_offset
+                # SHORT MATCH - offset uses last_offset (ebp)
                 ecx = (ecx + 1) & 0xFFFFFFFF
                 b = getbit()
                 if b == 1:
@@ -109,7 +114,7 @@ try:
                     print(f"DONE at iter {iteration}, output={len(output)}")
                     break
 
-                # sar eax, 1 → rbp
+                # sar eax, 1 → rbp (ebp)
                 eax32 = eax & 0xFFFFFFFF
                 if eax32 >= 0x80000000:
                     eaxs = eax32 - 0x100000000

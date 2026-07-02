@@ -1,0 +1,44 @@
+cmake_minimum_required(VERSION 3.16)
+project(LiberTeaBrowserMinimal LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# MSVC settings
+if(MSVC)
+    add_compile_options(/W4 /permissive- /EHsc)
+    add_link_options(/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+endif()
+
+# ImGui
+add_subdirectory(imgui)
+
+# Minimal executable - just browser and file loader
+add_executable(LiberTeaBrowserMinimal
+    src/main_simple.cpp
+    src/browser.h
+    src/file_loader.cpp
+    src/file_loader.h
+)
+
+target_link_libraries(LiberTeaBrowserMinimal PRIVATE imgui)
+target_include_directories(LiberTeaBrowserMinimal PRIVATE src ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+
+# Copy data files to build directory
+add_custom_command(TARGET LiberTeaBrowserMinimal POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/data
+        $<TARGET_FILE_DIR:LiberTeaBrowserMinimal>/data
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/logs
+        $<TARGET_FILE_DIR:LiberTeaBrowserMinimal>/logs
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/docs
+        $<TARGET_FILE_DIR:LiberTeaBrowserMinimal>/docs
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/scripts
+        $<TARGET_FILE_DIR:LiberTeaBrowserMinimal>/scripts
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_SOURCE_DIR}/README.md
+        $<TARGET_FILE_DIR:LiberTeaBrowserMinimal>/
+)

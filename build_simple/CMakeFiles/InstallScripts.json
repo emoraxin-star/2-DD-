@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"C:/Users/emora/OneDrive/Desktop/2/build_simple/cmake_install.cmake",
+		"C:/Users/emora/OneDrive/Desktop/2/build_simple/imgui/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
