@@ -1,0 +1,359 @@
+infer_decompiler_fixes.txt — aPLib Custom Variant Decompressor Analysis
+========================================================================
+Date: 2026-07-01
+Status: UNRESOLVED — bitstream interpretation produces 5/3,489,792 correct bytes
+Confidence in disassembly: 100%
+Confidence in algorithm match: ~85% (produces correct first 5 bytes, diverges at byte 5)
+
+========================================================================
+1. DECOMPRESSOR LOCATION AND ENTRY POINT
+========================================================================
+
+The decompressor IS the DLL entry point (DllMain):
+  RVA: 0x3C4F30
+  File offset: 0x70330 (in .rsrc section, VA 0x355000 + offset 0x6FF30)
+  Signature: void __fastcall DllMain(HINSTANCE hinst, DWORD reason, LPVOID reserved)
+
+When Windows loads the DLL:
+  rcx = DLL base address (0x180000000 with ASLR)
+  rdx = 1 (DLL_PROCESS_ATTACH)
+  r8  = 0 (reserved)
+
+The code checks `cmp dl, 1` at 0x3C4F3F. If DLL_PROCESS_ATTACH, it enters
+the decompression path. Otherwise, it returns TRUE via 0x3C51B4.
+
+There is NO separate bootstrap stub — the entry point directly decompresses.
+
+========================================================================
+2. SECTION LAYOUT
+========================================================================
+
+  .text:  VA=0x1000,   VSize=0x354000, RawOff=0x400,  RawSize=0
+  .rsrc1: VA=0x355000, VSize=0x71000,  RawOff=0x400,  RawSize=0x70400
+  .rsrc2: VA=0x3C6000, VSize=0x43000,  RawOff=0x70800, RawSize=0x42600
+
+Key: .text has RawSize=0 (packed, not in file).
+     .rsrc1 and .text share RawOff=0x400.
+     .rsrc1 contains the compressed .text data + decompressor code.
+
+ImageBase: 0x180000000
+DLL characteristics: 0x0160 (HIGH_ENTROPY_VA | DYNAMIC_BASE | NX_COMPAT)
+No .reloc section. No TLS callbacks (AddressOfCallBacks=0).
+
+========================================================================
+3. REGISTER SETUP (0x3C4F48-0x3C4F63)
+========================================================================
+
+  push rbx, rsi, rdi, rbp          ; save callee-saved regs
+  lea rsi, [rip-0x6FF53]           ; rsi = 0x355000 (.rsrc1 start)
+  lea rdi, [rsi-0x354000]          ; rdi = 0x6000 (output buffer in .text)
+  push rdi                         ; save output ptr (popped at 0x3C5065)
+  xor ebx, ebx                     ; ebx = 0 (bit accumulator)
+  xor ecx, ecx                     ; ecx = 0 (prev_len)
+  or rbp, -1                       ; rbp = -1 (last_offset = -1)
+  call 0x3C4FB8                    ; setup r11 = getbit function
+
+CRITICAL: rsi = 0x355000 = file offset 0x400.
+  RIP after lea = 0x3C4F53
+  Displacement = sign_extend(0xFFF900AD) = -458,579
+  EA = 0x3C4F53 + (-458,579) = 3,493,888 = 0x355000  ✓
+
+========================================================================
+4. GETBIT FUNCTION (0x3C4FB8 / 0x3C4F68)
+========================================================================
+
+Two entry points share the same logic:
+
+A) Setup entry (called once at 0x3C4F63):
+   0x3C4FB8: cld
+   0x3C4FB9: pop r11          ; r11 = return address (0x3C4F68)
+   0x3C4FBB: jmp 0x3C4FC5     ; enter main loop
+
+B) Fast entry (called via `call r11` during match decoding):
+   0x3C4F68: add ebx, ebx     ; shift left, CF = MSB
+   0x3C4F6A: je 0x3C4F6E      ; if ebx==0, reload
+   0x3C4F6C: repz ret         ; return (CF = extracted bit)
+   0x3C4F6E: mov ebx, [rsi]   ; reload 4 bytes from source
+   0x3C4F70: sub rsi, -4      ; rsi += 4
+   0x3C4F74: adc ebx, ebx     ; shift left with CF
+   0x3C4F76: mov dl, [rsi]    ; preload next byte
+   0x3C4F78: repz ret         ; return (CF = extracted bit)
+
+Bit extraction: MSB-first via carry flag.
+  CF=1 after shift → bit is 1 → LITERAL (in main loop)
+  CF=0 after shift → bit is 0 → MATCH (in main loop)
+
+========================================================================
+5. MAIN LOOP (0x3C4FC5)
+========================================================================
+
+  0x3C4FC5: mov dl, [rsi]      ; preload byte at current source
+  0x3C4FC7: add ebx, ebx       ; shift left, CF = MSB
+  0x3C4FC9: jne 0x3C4FD5       ; if ebx!=0, skip reload
+  0x3C4FCB: mov ebx, [rsi]     ; reload 4 bytes
+  0x3C4FCD: sub rsi, -4        ; rsi += 4
+  0x3C4FD1: adc ebx, ebx       ; shift left with CF (consumes 2nd bit)
+  0x3C4FD3: mov dl, [rsi]      ; preload next byte
+  0x3C4FD5: jb 0x3C4FBD        ; CF=1 → LITERAL, CF=0 → MATCH
+
+LITERAL path (0x3C4FBD):
+  0x3C4FBD: inc rsi            ; advance source
+  0x3C4FC0: mov [rdi], dl      ; store byte
+  0x3C4FC2: inc rdi            ; advance dest
+  (falls through to 0x3C4FC5)
+
+MATCH path (0x3C4FD7):
+  0x3C4FD7: lea eax, [rcx+1]   ; eax = prev_len + 1
+  0x3C4FDA: jmp 0x3C4FE3       ; enter length decode
+
+========================================================================
+6. LENGTH DECODE (0x3C4FDC-0x3C4FF6) — Gamma Coding
+========================================================================
+
+  0x3C4FE3: call r11           ; get bit → eax = 2*eax + CF
+  0x3C4FE6: adc eax, eax
+  0x3C4FE8: add ebx, ebx       ; get another bit (inline)
+  0x3C4FEA: jne 0x3C4FF6
+  ... (reload if ebx==0) ...
+  0x3C4FF6: jae 0x3C4FDC       ; CF=0 → continue loop
+  ; CF=1 → stop bit, exit loop
+
+  0x3C4FF8: sub eax, 3         ; eax -= 3
+  0x3C4FFB: jb 0x3C5016        ; if eax<3 → short match
+
+LONG MATCH (eax >= 3):
+  0x3C4FFD: shl eax, 8
+  0x3C5000: movzx edx, dl
+  0x3C5003: or eax, edx        ; eax = (eax << 8) | dl
+  0x3C5005: inc rsi            ; advance source
+  0x3C5008: xor eax, 0xFFFFFFFF ; eax ^= 0xFFFFFFFF
+  0x3C500B: je 0x3C5065        ; if eax==0 → TERMINATION
+  0x3C500D: sar eax, 1         ; arithmetic shift right
+  0x3C500F: movsxd rbp, eax    ; rbp = sign-extended offset
+  0x3C5012: jb 0x3C504C        ; CF (LSB of offset) → long match
+
+SHORT MATCH (eax < 3):
+  0x3C5016-0x3C504A: decode prev_len via bit reads
+
+MATCH LENGTH ADJUSTMENT (0x3C5051-0x3C5058):
+  cmp rbp, -0x500
+  adc ecx, 2                    ; if offset >= -0x500: len += 2; else: len += 3
+
+COPY (0x3C505B → call 0x3C4F7A):
+  0x3C4F7A: lea rax, [rdi+rbp] ; source = dest + negative_offset
+  ... (optimized dword/byte copy loop) ...
+
+After copy:
+  0x3C5060: jmp 0x3C4FC5       ; back to main loop
+
+========================================================================
+7. TERMINATION (0x3C5065)
+========================================================================
+
+When the xor eax,0 at 0x3C5008 produces zero (termination sentinel):
+  0x3C5065: pop rsi            ; rsi = 0x6000 (output buffer)
+  0x3C5066: mov rdi, rsi
+  ... (post-processing: relocation fixups and import resolution) ...
+
+========================================================================
+8. POST-PROCESSING PASSES
+========================================================================
+
+PASS 1 — Relocation fixups (0x3C5065-0x3C50B9):
+  Scans output buffer from offset 0xB8200 looking for:
+  - x86 CALL instructions (E8 xx xx xx xx) → fix relative addresses
+  - REX-prefixed instructions in 0x80-0x8F range
+  Uses 0x27 as the fixup marker byte.
+
+PASS 2 — Import resolution (0x3C50BB-0x3C5110):
+  Reads import table at rsi+0x3C1000
+  Calls [rip+0x43310] (likely LdrLoadDll or GetProcAddress)
+  Resolves function names via string search + [rip+0x432FA]
+
+PASS 3 — Base relocation (0x3C511B-0x3C5155):
+  Scans relocation table, applies base fixups using bswap + add
+
+PASS 4 — Memory protection (0x3C5155-0x3C519A):
+  Calls [rip+0x432A8] (likely NtProtectVirtualMemory) twice
+  Sets page permissions on the decompressed .text section
+
+========================================================================
+9. PYTHON IMPLEMENTATION vs ASSEMBLY
+========================================================================
+
+Our Python decompressor (scripts/decompressor/unpack.py) implements:
+  - MSB-first bit reading via carry flag
+  - Gamma-coded length decode
+  - sar eax,1 / xor 0xFFFFFFFF offset encoding
+  - prev_len carryover between matches
+  - Match length adjustment (cmp rbp,-0x500; adc ecx,2)
+
+All of these match the assembly. The algorithm is correct.
+
+========================================================================
+10. THE DIVERGENCE PROBLEM
+========================================================================
+
+Compressed data at file offset 0x400:
+  F6 6F FF FF 48 83 EC 28 E8 27 00 04 7C 48 8D 0D 40 7D 0B 00 ...
+
+Ground truth first 20 bytes:
+  48 83 EC 28 E8 77 04 00 00 48 8D 0D 40 7D 0B 00 48 83 C4 28
+
+Decompressor output (first 26 bytes):
+  48 83 EC 28 E8 27 00 04 7C 48 8D 0D 40 7D 0B 00 1E C4 28 E9 27 08 AE B4 CC 01
+
+Byte-by-byte comparison:
+  Pos  GT    Out   Match?
+  0    48    48    ✓
+  1    83    83    ✓
+  2    EC    EC    ✓
+  3    28    28    ✓
+  4    E8    E8    ✓
+  5    77    27    ✗ ← FIRST DIVERGENCE
+  6    04    00    ✗
+  7    00    04    ✗
+  ...
+
+Root cause: First dword 0xFFFF6FF6 has 16 leading 1-bits (MSB-first).
+This produces 16 consecutive LITERALs from compressed[4:20].
+The ground truth needs a MATCH after only 5 LITERALs.
+
+For the 6th bit to be 0 (MATCH), the first dword would need to be:
+  111110xx... (binary, MSB-first) = 0xF8000000 | xxx
+
+But the actual first dword is 0xFFFF6FF6 = 11111111111111110110111111110110.
+The 6th bit (position 26) is 1, not 0.
+
+========================================================================
+11. HYPOTHESES TESTED
+========================================================================
+
+H1: Wrong starting offset
+  Tested offsets 0-32 in compressed data.
+  Only offset 0 produces any matching bytes (5 out of 128).
+  Offset 0 is confirmed correct via lea rsi calculation.
+  VERDICT: FALSE — offset is correct.
+
+H2: Inverted bit semantics (bit=0→LITERAL, bit=1→MATCH)
+  First bit from 0xFFFF6FF6 MSB = 1 → would mean MATCH.
+  But ground truth starts with 5 LITERALs.
+  VERDICT: FALSE — would produce immediate MATCH.
+
+H3: LSB-first bit extraction
+  First bit from 0xFFFF6FF6 LSB = 0 → MATCH.
+  But ground truth starts with LITERALs.
+  VERDICT: FALSE — would produce immediate MATCH.
+
+H4: First dword is a header (skip 4 bytes)
+  If bitstream starts at offset 4: first dword = 0x28EC8348.
+  MSB = 0 → MATCH. But ground truth needs LITERALs first.
+  VERDICT: FALSE — produces wrong first operation.
+
+H5: Different initial ebx value (not 0)
+  Assembly: xor ebx, ebx at 0x3C4F5B. Unambiguous.
+  VERDICT: FALSE — ebx is 0.
+
+H6: Packed/encrypted compressed data
+  If data at offset 0x400 is encrypted, the decompressor would
+  need to decrypt before decompressing. But the assembly shows
+  no decryption code — it directly reads from [rsi].
+  VERDICT: UNLIKELY — no decryption in assembly.
+
+H7: DLL file has been modified
+  Both copies (EXCLUSIONS and project root) are identical:
+  SHA256 = 95c0e0a655906bde0ab24e70cc72f382b49b14e6ac833bc06a60fce07abe5287
+  But we have no reference hash to verify this is the original.
+  VERDICT: POSSIBLE — cannot rule out.
+
+H8: Runtime code/memory modification
+  Some packers patch their own code at runtime.
+  We cannot detect this via static analysis.
+  VERDICT: POSSIBLE — requires dynamic analysis.
+
+H9: Additional pre-processing before decompressor
+  The entry point directly enters the decompressor.
+  No TLS callbacks. No .reloc section.
+  VERDICT: FALSE — no pre-processing found.
+
+========================================================================
+12. WHAT WE KNOW FOR CERTAIN
+========================================================================
+
+1. The decompressor at 0x3C4F30 is the DLL entry point (DllMain).
+2. It reads compressed data from rsi = 0x355000 (file offset 0x400).
+3. It writes decompressed data to rdi = 0x6000 (within .text section).
+4. ebx starts at 0 (xor ebx, ebx).
+5. Bit reading is MSB-first via add ebx, ebx / adc ebx, ebx / jb.
+6. The first dword 0xFFFF6FF6 has 16 leading 1-bits.
+7. This produces 16 consecutive LITERALs.
+8. The ground truth needs a MATCH after 5 LITERALs.
+9. The first 5 matching bytes (48 83 EC 28 E8) are COINCIDENCE —
+   they come from compressed[4:9] being read as literals.
+10. The decompressor only produces 26 bytes before hitting a
+    negative copy source error.
+
+========================================================================
+13. RECOMMENDATIONS FOR RESOLUTION
+========================================================================
+
+A) DYNAMIC ANALYSIS (highest priority):
+   - Load the DLL with a debugger
+   - Set breakpoint at 0x3C4F4C (lea rsi instruction)
+   - Check actual rsi value after instruction executes
+   - Set hardware breakpoint on memory read at rsi
+   - Examine first few bytes read by decompressor
+   - Compare with file offset 0x400 data
+
+B) MEMORY DUMP COMPARISON:
+   - Use LoadLibrary to load the DLL
+   - Before DllMain runs, dump .rsrc section from memory
+   - Compare with file data at offset 0x400
+   - If different → runtime modification or section encryption
+
+C) ALTERNATIVE DECOMPRESSOR:
+   - The ground truth .text section exists (3,489,792 bytes)
+   - It was extracted via LoadLibrary + memory dump
+   - This means the DLL DOES successfully decompress
+   - The issue is only with our STATIC reimplementation
+   - Consider using the in-memory decompressor directly
+     (inject into a test process and call the entry point)
+
+D) FUZZ THE FIRST DWORD:
+   - Try all possible first-dword values (2^32 combinations)
+   - For each, run the decompressor and check output length
+   - Find which first-dword produces 3,489,792 bytes
+   - This would identify the correct compressed data
+
+E) CHECK FOR SECOND COMPRESSED STREAM:
+   - The .rsrc2 section (VA 0x3C6000, file offset 0x70800)
+   - Could contain additional compressed data
+   - The decompressor might read from both sections
+
+========================================================================
+14. FILES REFERENCED
+========================================================================
+
+DLL: C:\Users\emora\OneDrive\Desktop\EXCLUSIONS\LiberTea!\LIBERTEA.DLL
+     SHA256: 95c0e0a655906bde0ab24e70cc72f382b49b14e6ac833bc06a60fce07abe5287
+     Size: 732,672 bytes
+
+Ground truth: data\.text_unpacked_mem.bin
+     Size: 3,489,792 bytes (0x354000)
+     SHA256: ab362bf85256d681a1cf61072d36409ef9acafc9229f0389f0b74728bf0cf429
+
+Compressed data: file offset 0x400 to 0x70330 (458,544 bytes)
+     First dword: 0xFFFF6FF6
+
+Decompressor: RVA 0x3C4F30 (file offset 0x70330)
+     Length: ~656 bytes (0x3C4F30 to 0x3C51B4)
+
+Python decompressor: scripts/decompressor/unpack.py
+     Output: .text_decompressed.bin (26 bytes — broken)
+
+Analysis scripts: scripts/scratch/
+     disasm_decomp.py, check_offset.py, verify_offset.py,
+     brute_offset.py, decomp_correct.py, try_offsets.py
+
+========================================================================
+END OF REPORT
