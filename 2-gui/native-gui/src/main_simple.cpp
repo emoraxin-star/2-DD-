@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <Windows.h>
+#include <windowsx.h>
 #include <ShlObj.h>
 #include <shellapi.h>
 #include <GL/gl.h>
@@ -37,6 +38,15 @@ HWND g_hwnd = NULL;
 HDC g_hdc = NULL;
 HGLRC g_gl_context = NULL;
 int g_win_x = 50, g_win_y = 50, g_win_w = 1280, g_win_h = 800;
+bool g_window_maximized = false;
+
+enum TabId { TAB_BROWSE, TAB_VIEWER, TAB_HEX, TAB_SEARCH, TAB_NOTEPAD, TAB_GITHUB, TAB_COUNT };
+int g_current_tab = TAB_BROWSE;
+
+// Header button rects for WM_NCHITTEST (must set each frame)
+struct HdrBtn { int x, y, w, h; };
+HdrBtn g_hdr_btns[64];
+int g_hdr_btn_count = 0;
 
 enum ThemeMode { Theme_Dark, Theme_Light, Theme_Matrix };
 ThemeMode g_theme = Theme_Dark;
@@ -967,8 +977,15 @@ void ShowSettingsPopup() {
         g_show_settings = false;
     }
     if (ImGui::BeginPopupModal("Settings", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        // Theme
-        ImGui::Text("Theme");
+        ImGui::BeginChild("##sett", ImVec2(380, 0), ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+        // Section: Theme
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            ImGui::GetCursorScreenPos(),
+            ImVec2(ImGui::GetCursorScreenPos().x + 380, ImGui::GetCursorScreenPos().y + 22),
+            IM_COL32(40,40,45,180), 3, ImDrawFlags_RoundCornersTop);
+        ImGui::TextUnformatted("  \xE2\x96\xA0  THEME");
+        ImGui::Separator();
         const char* themes[] = { "VS Code Dark", "GitHub Light", "Matrix Neon" };
         int t = (int)g_theme;
         if (ImGui::Combo("##theme", &t, themes, 3)) {
@@ -976,9 +993,11 @@ void ShowSettingsPopup() {
             ApplyTheme();
         }
 
-        // Font
+        // Section: Font
+        ImGui::Dummy(ImVec2(0, 6));
         ImGui::Separator();
-        ImGui::Text("Font");
+        ImGui::TextUnformatted("  \xE2\x96\xA0  FONT");
+        ImGui::Separator();
         if (ImGui::Combo("##font", &g_font_idx,
             [](void* data, int idx, const char** out) {
                 auto* v = (std::vector<FontInfo>*)data;
@@ -993,10 +1012,12 @@ void ShowSettingsPopup() {
             FontChangeDeferred(g_font_idx, g_font_size);
         }
 
-        // Text color (only for Matrix mode)
+        // Neon text color (Matrix only)
         if (g_theme == Theme_Matrix) {
+            ImGui::Dummy(ImVec2(0, 6));
             ImGui::Separator();
-            ImGui::Text("Neon Text Color");
+            ImGui::TextUnformatted("  \xE2\x96\xA0  NEON COLOR");
+            ImGui::Separator();
             float col[3] = { g_text_r, g_text_g, g_text_b };
             if (ImGui::ColorEdit3("##textcol", col)) {
                 g_text_r = col[0]; g_text_g = col[1]; g_text_b = col[2];
@@ -1004,17 +1025,15 @@ void ShowSettingsPopup() {
             }
         }
 
-        // Forward declarations for bg functions defined later
+        // Section: Background
         extern bool LoadBgImage(const std::string&);
         extern void FreeBgTex();
-
-        // Background image
+        ImGui::Dummy(ImVec2(0, 6));
         ImGui::Separator();
-        extern bool LoadBgImage(const std::string&);
-        extern void FreeBgTex();
-
-        ImGui::Text("Background Image");
+        ImGui::TextUnformatted("  \xE2\x96\xA0  BACKGROUND");
+        ImGui::Separator();
         ImGui::Checkbox("Enable", &g_bg_enabled);
+        ImGui::SameLine();
         if (ImGui::Button("Choose Image...")) {
             OPENFILENAMEA ofn = { sizeof(OPENFILENAMEA) };
             char file[MAX_PATH] = {};
@@ -1028,7 +1047,7 @@ void ShowSettingsPopup() {
         }
         if (!g_bg_path.empty()) {
             ImGui::TextUnformatted(g_bg_path.c_str());
-            ImGui::Text("%d x %d", g_bg_img_w, g_bg_img_h);
+            ImGui::TextDisabled("%d x %d", g_bg_img_w, g_bg_img_h);
             if (ImGui::Button("Clear")) {
                 g_bg_enabled = false;
                 g_bg_path.clear();
@@ -1037,13 +1056,16 @@ void ShowSettingsPopup() {
         }
         ImGui::SliderFloat("Opacity", &g_bg_opacity, 0.05f, 1.0f, "%.2f");
 
+        // Actions
+        ImGui::Dummy(ImVec2(0, 8));
         ImGui::Separator();
-        if (ImGui::Button("Save Config")) {
+        if (ImGui::Button("Save Config", ImVec2(120, 0))) {
             SaveSettings();
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
-        if (ImGui::Button("Close")) ImGui::CloseCurrentPopup();
+        if (ImGui::Button("Close", ImVec2(120, 0))) ImGui::CloseCurrentPopup();
+        ImGui::EndChild();
         ImGui::EndPopup();
     }
 }
@@ -1147,35 +1169,56 @@ void RenderBg(int win_w, int win_h) {
 // ============================================================
 void RenderSidebar(float height) {
     if (!g_sidebar) return;
-    ImGui::BeginChild("##side", ImVec2(g_side_w, height), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
-    ImGui::TextUnformatted("Explorer");
+    ImGui::BeginChild("##side", ImVec2(g_side_w, height),
+        ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_AutoResizeX);
+
+    // Accent header
+    ImU32 accent = (g_theme == Theme_Matrix) ? IM_COL32(0,255,65,200) : IM_COL32(0,200,120,200);
+    ImVec2 hs = ImGui::GetCursorScreenPos();
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(hs.x, hs.y), ImVec2(hs.x + g_side_w, hs.y + 24), IM_COL32(40,40,45,200), 3, ImDrawFlags_RoundCornersTop);
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(hs.x + 8, hs.y + 21), ImVec2(hs.x + g_side_w - 8, hs.y + 23), accent, 1);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
+    ImGui::Indent(8);
+    ImGui::TextUnformatted("\xE2\x96\xA0  EXPLORER");
+    ImGui::Unindent(8);
+    ImGui::Dummy(ImVec2(0, 2));
     ImGui::Separator();
 
     fs::path cur = g_browse_dir.empty() ? g_root : g_browse_dir;
-    // Up button
+
+    // Slim toolbar
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 2));
     ImGui::BeginDisabled(g_browse_dir.empty());
-    if (ImGui::SmallButton(".. Up")) {
+    if (ImGui::SmallButton("\xE2\x86\x90")) {
         fs::path p = cur.parent_path();
         if (p != cur) BrowseTo(p);
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::SmallButton("Root")) { g_browse_dir.clear(); BrowseTo(g_root); }
+    if (ImGui::SmallButton("\xE2\x8C\x82")) { g_browse_dir.clear(); BrowseTo(g_root); }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Refresh")) BrowseTo(cur);
+    if (ImGui::SmallButton("\xE2\x9F\xB3")) BrowseTo(cur);
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", cur.filename().string().c_str());
+    ImGui::PopStyleVar();
 
+    ImGui::Separator();
     ImGui::BeginChild("##sidelist", ImVec2(0, 0));
+
     // Parent entry
     fs::path parent = cur.parent_path();
     if (!g_browse_dir.empty() && parent != cur) {
-        if (ImGui::Selectable("  [..]", false, ImGuiSelectableFlags_AllowDoubleClick)) {
+        if (ImGui::Selectable("  \xF0\x9F\x93\x82  [..]", false, ImGuiSelectableFlags_AllowDoubleClick)) {
             if (ImGui::IsMouseDoubleClicked(0)) BrowseTo(parent);
         }
     }
     for (const auto& e : g_files) {
         ImGui::PushID(&e);
         bool d = e.is_directory;
-        std::string l = e.relative_path.filename().string();
+        std::string icon = d ? "\xF0\x9F\x93\x81 " : "\xF0\x9F\x93\x84 ";
+        std::string l = "  " + icon + e.relative_path.filename().string();
         if (!d) l += "  " + FileLoader::FormatSize(e.size);
         bool sel = (g_opened == e.path);
         if (d) ImGui::PushStyleColor(ImGuiCol_Text, hex(86, 156, 214));
@@ -1190,10 +1233,150 @@ void RenderSidebar(float height) {
     }
     ImGui::EndChild();
 
-    // Track resize
     g_side_w = ImGui::GetWindowWidth();
     ImGui::EndChild();
     ImGui::SameLine();
+}
+
+// ============================================================
+// Custom header (replaces OS title bar + ImGui menu bar)
+// ============================================================
+void RenderHeader(int fb_w, float h) {
+    g_hdr_btn_count = 0; // reset for this frame
+
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImVec2((float)fb_w, h));
+    ImGui::Begin("##header", NULL,
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 0));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1, 1, 1, 0.08f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.12f));
+
+    auto track_btn = [](int x, int y, int w, int h) {
+        if (g_hdr_btn_count < 64)
+            g_hdr_btns[g_hdr_btn_count++] = {x, y, w, h};
+    };
+
+    // --- Hamburger menu ---
+    if (ImGui::Button("\xE2\x98\xB0", ImVec2(32, h - 4))) {
+        ImGui::OpenPopup("##header_menu");
+    }
+    { ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+      track_btn((int)a.x, (int)a.y, (int)(b.x-a.x), (int)(b.y-a.y)); }
+    if (ImGui::BeginPopup("##header_menu")) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Exit", "Alt+F4")) PostQuitMessage(0);
+            ImGui::Separator();
+            if (ImGui::MenuItem("Refresh", "F5"))
+                g_files = FileLoader::ScanDirectory(g_root);
+            ImGui::Separator();
+            if (ImGui::MenuItem("Settings")) g_show_settings = true;
+            if (ImGui::MenuItem("Save Config")) SaveSettings();
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("View")) {
+            if (ImGui::MenuItem("Sidebar", "Ctrl+B", &g_sidebar)) {}
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Theme")) {
+            bool d = (g_theme == Theme_Dark);
+            bool l = (g_theme == Theme_Light);
+            bool m = (g_theme == Theme_Matrix);
+            if (ImGui::MenuItem("VS Code Dark", NULL, &d)) { g_theme = Theme_Dark; ApplyTheme(); }
+            if (ImGui::MenuItem("GitHub Light", NULL, &l)) { g_theme = Theme_Light; ApplyTheme(); }
+            if (ImGui::MenuItem("Matrix Neon", NULL, &m)) { g_theme = Theme_Matrix; ApplyTheme(); }
+            ImGui::EndMenu();
+        }
+        ImGui::EndPopup();
+    }
+
+    // --- App badge + title ---
+    ImGui::SameLine();
+    ImVec2 p0 = ImGui::GetCursorScreenPos();
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(p0.x, p0.y + 4), ImVec2(p0.x + 10, p0.y + 14),
+        IM_COL32(0, 200, 120, 255), 2);
+    ImGui::Dummy(ImVec2(14, 0));
+    ImGui::SameLine();
+    ImGui::TextUnformatted("LiberTea Browser");
+    { ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+      track_btn((int)a.x, (int)a.y, (int)(b.x-a.x), (int)(b.y-a.y)); }
+
+    // --- Tab buttons with accent underline ---
+    const char* tab_names[] = { "Browse", "Viewer", "Hex", "Search", "Notepad", "GitHub" };
+    for (int i = 0; i < TAB_COUNT; i++) {
+        ImGui::SameLine();
+        bool active = (g_current_tab == i);
+        if (active) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.25f, 0.25f, 0.25f, 0.5f));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_Text));
+        }
+        if (ImGui::Button(tab_names[i])) {
+            g_current_tab = i;
+        }
+        { ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+          track_btn((int)a.x, (int)a.y, (int)(b.x-a.x), (int)(b.y-a.y)); }
+        if (active) {
+            ImGui::PopStyleColor(2);
+            // Accent underline
+            ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+            ImGui::GetWindowDrawList()->AddRectFilled(
+                ImVec2(a.x + 4, b.y - 2), ImVec2(b.x - 4, b.y),
+                IM_COL32(0, 200, 120, 220), 1);
+        }
+    }
+
+    // Remaining header area = drag zone (NOT tracked as button, so WM_NCHITTEST returns HTCAPTION)
+
+    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar(2);
+
+    // --- Window controls (right side) ---
+    float btn_w = 46.0f;
+    ImGui::SameLine();
+    ImGui::SetCursorPosY(0);
+    if (ImGui::Button("\xE2\x94\x80", ImVec2(btn_w, h))) {
+        ShowWindow(g_hwnd, SW_MINIMIZE);
+    }
+    { ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+      track_btn((int)a.x, (int)a.y, (int)(b.x-a.x), (int)(b.y-a.y)); }
+    ImGui::SameLine();
+    if (ImGui::Button(g_window_maximized ? "\xE2\x9E\x97" : "\xE2\x96\xA1", ImVec2(btn_w, h))) {
+        if (g_window_maximized) {
+            ShowWindow(g_hwnd, SW_RESTORE);
+            g_window_maximized = false;
+        } else {
+            ShowWindow(g_hwnd, SW_MAXIMIZE);
+            g_window_maximized = true;
+        }
+    }
+    { ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+      track_btn((int)a.x, (int)a.y, (int)(b.x-a.x), (int)(b.y-a.y)); }
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 0.25f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.0f, 0.0f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1.0f, 0.0f, 0.0f, 0.5f));
+    if (ImGui::Button("\xE2\x9C\x95  Exit", ImVec2(btn_w + 30, h))) {
+        PostQuitMessage(0);
+    }
+    { ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+      track_btn((int)a.x, (int)a.y, (int)(b.x-a.x), (int)(b.y-a.y)); }
+    ImGui::PopStyleColor(3);
+
+    // Bottom accent line on header
+    ImU32 accent = (g_theme == Theme_Matrix) ? IM_COL32(0,255,65,120) : IM_COL32(0,200,120,120);
+    ImVec2 hp = ImGui::GetWindowPos();
+    float hw = ImGui::GetWindowWidth();
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(hp.x, hp.y + h - 1), ImVec2(hp.x + hw, hp.y + h), accent);
+
+    ImGui::End();
 }
 
 // ============================================================
@@ -1214,7 +1397,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hi,
     ScanFonts();
 
     g_hwnd = CreateWindowExW(0, L"LiberTeaBrowserClass", L"LiberTea Browser",
-        WS_OVERLAPPEDWINDOW,
+        WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX,
         g_win_x > 0 ? g_win_x : CW_USEDEFAULT,
         g_win_y > 0 ? g_win_y : CW_USEDEFAULT,
         g_win_w, g_win_h, NULL, NULL, hi, NULL);
@@ -1279,48 +1462,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hi,
         ImGui_ImplOpenGL3_NewFrame();
         ImGui::NewFrame();
 
-        // Menu bar
-        if (ImGui::BeginMainMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Refresh", "F5"))
-                    g_files = FileLoader::ScanDirectory(g_root);
-                ImGui::Separator();
-                if (ImGui::MenuItem("Settings")) g_show_settings = true;
-                if (ImGui::MenuItem("Save Config")) SaveSettings();
-                ImGui::Separator();
-                if (ImGui::MenuItem("Exit", "Alt+F4")) PostQuitMessage(0);
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("View")) {
-                if (ImGui::MenuItem("Sidebar", "Ctrl+B", &g_sidebar)) {}
-                ImGui::EndMenu();
-            }
-            if (ImGui::BeginMenu("Theme")) {
-                bool d = (g_theme == Theme_Dark);
-                bool l = (g_theme == Theme_Light);
-                bool m = (g_theme == Theme_Matrix);
-                if (ImGui::MenuItem("VS Code Dark", NULL, &d)) { g_theme = Theme_Dark; ApplyTheme(); }
-                if (ImGui::MenuItem("GitHub Light", NULL, &l)) { g_theme = Theme_Light; ApplyTheme(); }
-                if (ImGui::MenuItem("Matrix Neon", NULL, &m)) { g_theme = Theme_Matrix; ApplyTheme(); }
-                ImGui::EndMenu();
-            }
-            ImGui::EndMainMenuBar();
-        }
-
-        float menuh = ImGui::GetFrameHeight();
         float statush = 22.0f;
+        const float header_h = 34.0f;
 
         // Settings popup
         ShowSettingsPopup();
 
-        float content_h = (float)fb_h - menuh - statush;
+        // Custom header (replaces OS title bar + menu bar + tab bar)
+        RenderHeader(fb_w, header_h);
+
+        float content_h = (float)fb_h - header_h - statush;
 
         // Sidebar (left panel)
         RenderSidebar(content_h);
         float side_offset = g_sidebar ? g_side_w + 4.0f : 0.0f;
 
-        // Main content with tabs
-        ImGui::SetNextWindowPos(ImVec2(side_offset, menuh));
+        // Main content (no tab bar — tabs are in the header)
+        ImGui::SetNextWindowPos(ImVec2(side_offset, header_h));
         ImGui::SetNextWindowSize(ImVec2((float)fb_w - side_offset, content_h));
         ImGui::Begin("##main", NULL,
             ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -1328,31 +1486,35 @@ int APIENTRY wWinMain(_In_ HINSTANCE hi,
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
-        if (ImGui::BeginTabBar("##tabs", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton)) {
-            if (ImGui::BeginTabItem("Browse", NULL, ImGuiTabItemFlags_None)) { TabBrowse(); ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Viewer", NULL, ImGuiTabItemFlags_None)) { TabViewer(); ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Hex", NULL, ImGuiTabItemFlags_None)) { TabHex(); ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Search", NULL, ImGuiTabItemFlags_None)) { TabSearch(); ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("Notepad", NULL, ImGuiTabItemFlags_None)) { TabNotepad(); ImGui::EndTabItem(); }
-            if (ImGui::BeginTabItem("GitHub", NULL, ImGuiTabItemFlags_None)) { TabGitHub(); ImGui::EndTabItem(); }
-            ImGui::EndTabBar();
+        switch (g_current_tab) {
+            case TAB_BROWSE: TabBrowse(); break;
+            case TAB_VIEWER: TabViewer(); break;
+            case TAB_HEX:    TabHex(); break;
+            case TAB_SEARCH: TabSearch(); break;
+            case TAB_NOTEPAD: TabNotepad(); break;
+            case TAB_GITHUB: TabGitHub(); break;
         }
         ImGui::End();
 
-        // Status bar
+        // Status bar with accent top border
         ImGui::SetNextWindowPos(ImVec2(0, (float)fb_h - statush));
         ImGui::SetNextWindowSize(ImVec2((float)fb_w, statush));
         ImGui::Begin("##status", NULL,
             ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse);
+        // Accent line at top
+        ImU32 accent = (g_theme == Theme_Matrix) ? IM_COL32(0,255,65,160) : IM_COL32(0,200,120,160);
+        ImVec2 sp = ImGui::GetCursorScreenPos();
+        ImGui::GetWindowDrawList()->AddRectFilled(
+            ImVec2(sp.x, sp.y - 1), ImVec2(sp.x + (float)fb_w, sp.y), accent);
         std::string st;
         if (!g_opened.empty())
             st = g_opened.filename().string() + "  |  " + g_opened.string();
         else
             st = std::to_string(g_files.size()) + " entries  |  " + g_root.string();
         ImGui::TextDisabled("%s", st.c_str());
-        ImGui::SameLine((float)fb_w - 160);
+        ImGui::SameLine((float)fb_w - 180);
         const char* theme_names[] = { "Dark", "Light", "Matrix" };
         ImGui::TextDisabled("%s  |  %s  %.0fpx",
             theme_names[(int)g_theme],
@@ -1393,12 +1555,51 @@ int APIENTRY wWinMain(_In_ HINSTANCE hi,
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, w, l)) return true;
-    if (msg == WM_DESTROY) { PostQuitMessage(0); return 0; }
-    if (msg == WM_GETMINMAXINFO) {
-        auto* mmi = (MINMAXINFO*)l;
-        mmi->ptMinTrackSize.x = 640;
-        mmi->ptMinTrackSize.y = 400;
-        return 0;
+    switch (msg) {
+        case WM_NCCALCSIZE:
+            return 0;
+        case WM_NCHITTEST: {
+            POINT pt = { GET_X_LPARAM(l), GET_Y_LPARAM(l) };
+            ScreenToClient(hwnd, &pt);
+            RECT rc; GetClientRect(hwnd, &rc);
+            const int b = 6;
+            if (pt.y <= b && pt.x <= b) return HTTOPLEFT;
+            if (pt.y <= b && pt.x >= rc.right - b) return HTTOPRIGHT;
+            if (pt.y >= rc.bottom - b && pt.x <= b) return HTBOTTOMLEFT;
+            if (pt.y >= rc.bottom - b && pt.x >= rc.right - b) return HTBOTTOMRIGHT;
+            if (pt.y <= b) return HTTOP;
+            if (pt.y >= rc.bottom - b) return HTBOTTOM;
+            if (pt.x <= b) return HTLEFT;
+            if (pt.x >= rc.right - b) return HTRIGHT;
+            // Header drag zone (y < 34) — skip known button rects
+            for (int i = 0; i < g_hdr_btn_count; i++) {
+                if (pt.x >= g_hdr_btns[i].x && pt.x < g_hdr_btns[i].x + g_hdr_btns[i].w &&
+                    pt.y >= g_hdr_btns[i].y && pt.y < g_hdr_btns[i].y + g_hdr_btns[i].h)
+                    return HTCLIENT;
+            }
+            if (pt.y < 34) return HTCAPTION;
+            return HTCLIENT;
+        }
+        case WM_SIZE:
+            if (w == SIZE_MAXIMIZED) g_window_maximized = true;
+            else if (w == SIZE_RESTORED) g_window_maximized = false;
+            break;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+        case WM_GETMINMAXINFO: {
+            auto* mmi = (MINMAXINFO*)l;
+            mmi->ptMinTrackSize.x = 640;
+            mmi->ptMinTrackSize.y = 400;
+            RECT work;
+            if (SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0)) {
+                mmi->ptMaxPosition.x = work.left;
+                mmi->ptMaxPosition.y = work.top;
+                mmi->ptMaxSize.x = work.right - work.left;
+                mmi->ptMaxSize.y = work.bottom - work.top;
+            }
+            return 0;
+        }
     }
     return DefWindowProc(hwnd, msg, w, l);
 }
